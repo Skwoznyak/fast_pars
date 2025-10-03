@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     unzip \
     curl \
-    # Зависимости для Chrome
+    # Зависимости для Chrome (без устаревших пакетов)
     libnss3 \
-    libgconf-2-4 \
+    libglib2.0-0 \
     libfontconfig1 \
     libxss1 \
     libappindicator3-1 \
@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     xdg-utils \
     fonts-liberation \
-    # Дополнительные утилиты
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем Chrome
@@ -70,3 +70,4 @@ EXPOSE 8000
 # Используем shell форму CMD для подстановки переменных
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
++7 900 973 92 89
