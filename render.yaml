@@ -5,11 +5,10 @@ services:
     plan: starter  # Минимум для Selenium - starter или выше
     region: frankfurt  # Или oregon, singapore
     dockerfilePath: ./Dockerfile
+    # Важно: не указываем dockerCommand - используем CMD из Dockerfile
     envVars:
       - key: PYTHONUNBUFFERED
         value: 1
-      - key: PORT
-        value: 8000
     # Важно: Selenium требует больше памяти
     # Рекомендуется plan: standard ($25/мес) для стабильной работы Chrome
 

@@ -67,5 +67,6 @@ EXPOSE 8000
 
 # Запускаем приложение
 # Render использует переменную окружения PORT
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Используем shell форму CMD для подстановки переменных
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
