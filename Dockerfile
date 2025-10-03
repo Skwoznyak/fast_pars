@@ -4,50 +4,31 @@ FROM python:3.11-slim
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Устанавливаем системные зависимости для Chrome и Selenium
+# Устанавливаем системные зависимости для Firefox и Selenium
 RUN apt-get update && apt-get install -y \
     wget \
-    gnupg \
-    unzip \
     curl \
-    # Зависимости для Chrome (без устаревших пакетов)
-    libnss3 \
-    libglib2.0-0 \
-    libfontconfig1 \
-    libxss1 \
-    libappindicator3-1 \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
+    bzip2 \
+    # Зависимости для Firefox
     libgtk-3-0 \
-    libnspr4 \
+    libdbus-glib-1-2 \
+    libxt6 \
     libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    xdg-utils \
-    fonts-liberation \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем Chrome
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
+# Устанавливаем Firefox
+RUN wget -O firefox.tar.bz2 "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US" \
+    && tar -xjf firefox.tar.bz2 -C /opt \
+    && ln -s /opt/firefox/firefox /usr/local/bin/firefox \
+    && rm firefox.tar.bz2
 
-# Устанавливаем ChromeDriver
-RUN CHROMEDRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE) \
-    && wget -q "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip" \
-    && unzip chromedriver_linux64.zip \
-    && mv chromedriver /usr/local/bin/chromedriver \
-    && chmod +x /usr/local/bin/chromedriver \
-    && rm chromedriver_linux64.zip
+# Устанавливаем GeckoDriver (драйвер для Firefox)
+RUN GECKO_VERSION=$(curl -sS https://api.github.com/repos/mozilla/geckodriver/releases/latest | grep "tag_name" | cut -d '"' -f 4) \
+    && wget -q "https://github.com/mozilla/geckodriver/releases/download/${GECKO_VERSION}/geckodriver-${GECKO_VERSION}-linux64.tar.gz" \
+    && tar -xzf geckodriver-${GECKO_VERSION}-linux64.tar.gz \
+    && mv geckodriver /usr/local/bin/geckodriver \
+    && chmod +x /usr/local/bin/geckodriver \
+    && rm geckodriver-${GECKO_VERSION}-linux64.tar.gz
 
 # Копируем файл зависимостей
 COPY requirements.txt .
