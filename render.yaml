@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: tgads-parser
+    env: docker
+    plan: starter  # Минимум для Selenium - starter или выше
+    region: frankfurt  # Или oregon, singapore
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: PORT
+        value: 8000
+    # Важно: Selenium требует больше памяти
+    # Рекомендуется plan: standard ($25/мес) для стабильной работы Chrome
+
