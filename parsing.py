@@ -14,64 +14,35 @@ from datetime import datetime
 
 
 def create_firefox_driver():
-    """Создает настроенный Firefox драйвер с опциями для стабильной работы"""
-    options = Options()
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-plugins")
-    options.add_argument("--disable-images")
-    options.add_argument("--disable-javascript")
-    options.add_argument("--disable-web-security")
-    options.add_argument("--allow-running-insecure-content")
-    options.add_argument("--disable-features=VizDisplayCompositor")
+    """Создает настроенный Chrome драйвер с опциями для стабильной работы (переименовано для совместимости)"""
+    chrome_options = ChromeOptions()
 
-    # Отключаем уведомления
-    options.set_preference("dom.webnotifications.enabled", False)
-    options.set_preference("dom.push.enabled", False)
+    # Основные опции для headless режима
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-software-rasterizer")
 
-    # Отключаем автоматические обновления
-    options.set_preference("app.update.enabled", False)
-    options.set_preference("app.update.auto", False)
+    # User agent
+    chrome_options.add_argument(
+        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-    # Устанавливаем user agent
-    options.set_preference("general.useragent.override",
-                           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    # Для работы в Docker
+    chrome_options.add_argument("--disable-setuid-sandbox")
+    chrome_options.add_argument("--single-process")
+
+    # Путь к Chromium в Debian
+    chrome_options.binary_location = "/usr/bin/chromium"
 
     try:
-        driver = webdriver.Firefox(options=options)
+        driver = webdriver.Chrome(options=chrome_options)
+        print("✅ Chrome драйвер успешно создан")
         return driver
     except Exception as e:
-        print(f"Ошибка при создании Firefox драйвера: {e}")
-        # Попробуем без опций
-        try:
-            driver = webdriver.Firefox()
-            return driver
-        except Exception as e2:
-            print(f"Критическая ошибка Firefox: {e2}")
-            # Попробуем Chrome как альтернативу
-            try:
-                print("Пробуем Chrome как альтернативу...")
-                chrome_options = ChromeOptions()
-                chrome_options.add_argument("--no-sandbox")
-                chrome_options.add_argument("--disable-dev-shm-usage")
-                chrome_options.add_argument("--disable-gpu")
-                chrome_options.add_argument("--disable-extensions")
-                chrome_options.add_argument("--disable-images")
-                chrome_options.add_argument("--disable-web-security")
-                chrome_options.add_argument("--allow-running-insecure-content")
-                chrome_options.add_argument(
-                    "--disable-features=VizDisplayCompositor")
-                chrome_options.add_argument(
-                    "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-
-                driver = webdriver.Chrome(options=chrome_options)
-                print("Chrome драйвер успешно создан")
-                return driver
-            except Exception as e3:
-                print(f"Критическая ошибка Chrome: {e3}")
-                return None
+        print(f"❌ Ошибка при создании Chrome драйвера: {e}")
+        return None
 
 
 def phone_register_send(phone_num):
