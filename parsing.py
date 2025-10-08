@@ -3,7 +3,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 import time
@@ -11,38 +11,131 @@ import pickle
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
+import shutil
+import os
+
+
+def check_browser_availability():
+    """Проверяет доступность браузеров в системе"""
+    browsers = {
+        'chrome': False,
+        'firefox': False
+    }
+
+    # Проверяем Chrome/Chromium
+    chrome_paths = [
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+        "chromium",
+        "google-chrome"
+    ]
+
+    for path in chrome_paths:
+        if shutil.which(path):
+            browsers['chrome'] = True
+            print(f"✅ Найден Chrome/Chromium: {path}")
+            break
+
+    # Проверяем Firefox
+    firefox_paths = ["firefox", "/usr/bin/firefox"]
+    for path in firefox_paths:
+        if shutil.which(path):
+            browsers['firefox'] = True
+            print(f"✅ Найден Firefox: {path}")
+            break
+
+    return browsers
 
 
 def create_firefox_driver():
-    """Создает настроенный Chrome драйвер с опциями для стабильной работы (переименовано для совместимости)"""
-    chrome_options = ChromeOptions()
+    """Создает драйвер с автоматическим выбором браузера (Chrome -> Firefox)"""
 
-    # Основные опции для headless режима
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument("--disable-software-rasterizer")
+    print("🔍 Проверяю доступность браузеров...")
+    browsers = check_browser_availability()
 
-    # User agent
-    chrome_options.add_argument(
-        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    # Сначала пробуем Chrome, если он доступен
+    if browsers['chrome']:
+        print("🚀 Пробую создать Chrome драйвер...")
+        try:
+            chrome_options = ChromeOptions()
 
-    # Для работы в Docker
-    chrome_options.add_argument("--disable-setuid-sandbox")
-    chrome_options.add_argument("--single-process")
+            # Основные опции для headless режима
+            chrome_options.add_argument("--headless=new")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--disable-extensions")
+            chrome_options.add_argument("--disable-software-rasterizer")
 
-    # Путь к Chromium в Debian
-    chrome_options.binary_location = "/usr/bin/chromium"
+            # User agent
+            chrome_options.add_argument(
+                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-    try:
-        driver = webdriver.Chrome(options=chrome_options)
-        print("✅ Chrome драйвер успешно создан")
-        return driver
-    except Exception as e:
-        print(f"❌ Ошибка при создании Chrome драйвера: {e}")
-        return None
+            # Для работы в Docker
+            chrome_options.add_argument("--disable-setuid-sandbox")
+            chrome_options.add_argument("--single-process")
+
+            # Пробуем разные пути к Chrome/Chromium
+            chrome_paths = [
+                "/usr/bin/chromium",
+                "/usr/bin/chromium-browser",
+                "/usr/bin/google-chrome",
+                "/usr/bin/google-chrome-stable"
+            ]
+
+            driver = None
+            for chrome_path in chrome_paths:
+                try:
+                    chrome_options.binary_location = chrome_path
+                    driver = webdriver.Chrome(options=chrome_options)
+                    print(
+                        f"✅ Chrome драйвер успешно создан с путем: {chrome_path}")
+                    return driver
+                except Exception as e:
+                    print(
+                        f"⚠️ Не удалось создать Chrome с путем {chrome_path}: {e}")
+                    continue
+
+            # Если не удалось создать Chrome, пробуем без указания пути
+            try:
+                chrome_options.binary_location = None
+                driver = webdriver.Chrome(options=chrome_options)
+                print("✅ Chrome драйвер успешно создан (автоопределение пути)")
+                return driver
+            except Exception as e:
+                print(f"❌ Chrome драйвер недоступен: {e}")
+
+        except Exception as e:
+            print(f"❌ Ошибка при настройке Chrome: {e}")
+    else:
+        print("⚠️ Chrome/Chromium не найден в системе")
+
+    # Fallback на Firefox
+    if browsers['firefox']:
+        print("🔄 Переключаюсь на Firefox...")
+        try:
+            firefox_options = Options()
+            firefox_options.add_argument("--headless")
+            firefox_options.add_argument("--no-sandbox")
+            firefox_options.add_argument("--disable-dev-shm-usage")
+
+            # User agent для Firefox
+            firefox_options.set_preference("general.useragent.override",
+                                           "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0")
+
+            driver = webdriver.Firefox(options=firefox_options)
+            print("✅ Firefox драйвер успешно создан")
+            return driver
+
+        except Exception as e:
+            print(f"❌ Ошибка при создании Firefox драйвера: {e}")
+    else:
+        print("❌ Firefox не найден в системе")
+
+    print("❌ Не удалось создать ни один драйвер. Убедитесь, что установлен Chrome/Chromium или Firefox")
+    return None
 
 
 def phone_register_send(phone_num):
@@ -321,9 +414,10 @@ def parse_table_data_optimized(driver):
                     except Exception:
                         return ""
 
-                # Индексация: [0] уже использовали под заголовок/URL
+                # 🚀 ОБНОВЛЕНО: Индексация согласно реальной структуре HTML
+                # Порядок колонок: Ad Title(0), Views(1), Opens(2), Clicks(3), Actions(4), CTR(5), CVR(6), CPM(7), CPC(8), CPA(9), Spent(10), Budget(11), Target(12), Status(13), Date(14)
                 views = cell_text(1)
-                opened = cell_text(2)
+                opens = cell_text(2)  # Эта колонка будет скрыта настройками
                 clicks = cell_text(3)
                 actions = cell_text(4)
                 ctr = cell_text(5)
@@ -333,11 +427,25 @@ def parse_table_data_optimized(driver):
                 cpa = cell_text(9)
                 spent = cell_text(10)
                 budget = cell_text(11)
-                target = cell_text(12)
+                target = cell_text(12)  # Эта колонка будет скрыта настройками
                 status = cell_text(13)
                 date_added = cell_text(14)
 
                 # 🚀 ОПТИМИЗАЦИЯ: Правильная обработка числовых данных
+                def clean_currency_value(value):
+                    """Очищает валютные значения: убирает знаки валют и заменяет точки на запятые"""
+                    if not value or value == '–':
+                        return ""
+
+                    # Убираем знаки валют
+                    cleaned = value.replace('€', '').replace(
+                        '$', '').replace('₽', '').strip()
+
+                    # Заменяем точки на запятые
+                    cleaned = cleaned.replace('.', ',')
+
+                    return cleaned
+
                 try:
                     cpm_clean = cpm.replace('€', '').replace(',', '.')
                     cpm_num = float(
@@ -352,13 +460,23 @@ def parse_table_data_optimized(driver):
                 except ValueError:
                     budget_num = budget
 
+                # 🚀 НОВОЕ: Обработка колонок CPC, CPA, Spent
+                cpc_cleaned = clean_currency_value(cpc)
+                cpa_cleaned = clean_currency_value(cpa)
+                spent_cleaned = clean_currency_value(spent)
+
                 row_data = {
                     'Ad Title': ad_title_with_url,  # 🚀 ИЗМЕНЕНО: Title + URL через перенос строки
                     'Views': views,
+                    'Clicks': clicks,
                     'Actions': actions,
+                    'CTR': ctr,
+                    'CVR': cvr,
                     'CPM': cpm_num,
+                    'CPC': cpc_cleaned,  # 🚀 ОБНОВЛЕНО: Очищенные данные
+                    'CPA': cpa_cleaned,  # 🚀 ОБНОВЛЕНО: Очищенные данные
+                    'Spent': spent_cleaned,  # 🚀 ОБНОВЛЕНО: Очищенные данные
                     'Budget': budget_num,
-                    'Target': target,
                     'Status': status,
                     'Date Added': date_added
                 }
@@ -368,8 +486,13 @@ def parse_table_data_optimized(driver):
                 if len(parsed_data) == 1:
                     print(f"[ПАРСИНГ] 🔍 Пример спарсенной строки:")
                     print(f"  - Title with URL: {ad_title_with_url[:100]}...")
-                    print(f"  - Views: {views}, Actions: {actions}")
-                    print(f"  - CPM: {cpm_num}, Budget: {budget_num}")
+                    print(
+                        f"  - Views: {views}, Clicks: {clicks}, Actions: {actions}")
+                    print(f"  - CTR: {ctr}, CVR: {cvr}")
+                    print(
+                        f"  - CPM: {cpm_num}, CPC: {cpc_cleaned}, CPA: {cpa_cleaned}")
+                    print(f"  - Spent: {spent_cleaned}, Budget: {budget_num}")
+                    print(f"  - Status: {status}")
 
             except Exception as e:
                 print(f"[ПАРСИНГ] ❌ Ошибка при парсинге строки {i}: {e}")
@@ -404,8 +527,8 @@ def save_to_excel_optimized(data, channel_name, filename=None):
         df = pd.DataFrame(data)
 
         # 🚀 ОБНОВЛЕНО: Ad Title теперь содержит Title + URL через перенос строки
-        columns_order = ['Ad Title', 'Views', 'Actions',
-                         'CPM', 'Budget', 'Target', 'Status', 'Date Added']
+        columns_order = ['Ad Title', 'Views', 'Clicks', 'Actions', 'CTR', 'CVR',
+                         'CPM', 'CPC', 'CPA', 'Spent', 'Budget', 'Status', 'Date Added']
         df = df.reindex(columns=columns_order)
 
         # 🚀 ОПТИМИЗАЦИЯ: Правильные типы данных для числовых колонок
@@ -423,6 +546,77 @@ def save_to_excel_optimized(data, channel_name, filename=None):
     except Exception as e:
         print(f"Ошибка при сохранении в Excel: {e}")
         return None
+
+
+def configure_table_settings(driver):
+    """
+    Настраивает таблицу - нажимает кнопку настроек и выбирает нужные колонки
+    """
+    try:
+        wait = WebDriverWait(driver, 10)
+
+        # Находим и нажимаем кнопку настроек таблицы
+        settings_button = wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, ".pr-table-settings")))
+        print("[НАСТРОЙКА ТАБЛИЦЫ] ✅ Найдена кнопка настроек, нажимаю...")
+        settings_button.click()
+
+        # Ждем появления попапа настроек
+        wait.until(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, ".pr-layer-popup.popup-no-close")))
+        print("[НАСТРОЙКА ТАБЛИЦЫ] ✅ Попап настроек открыт")
+
+        # Список нужных чекбоксов для включения (согласно реальной структуре)
+        required_checkboxes = [
+            "views", "clicks", "actions", "ctr", "cvr", "cpm", "cpc",
+            "cpa", "spent", "budget", "status", "date"
+        ]
+
+        # Список чекбоксов для отключения (оставляем только нужные)
+        all_checkboxes = [
+            "opens", "target", "url", "action"
+        ]
+
+        # Отключаем ненужные чекбоксы
+        for checkbox_name in all_checkboxes:
+            try:
+                checkbox = driver.find_element(
+                    By.CSS_SELECTOR, f"input[name='{checkbox_name}']")
+                if checkbox.is_selected():
+                    print(
+                        f"[НАСТРОЙКА ТАБЛИЦЫ] 🔄 Отключаю чекбокс: {checkbox_name}")
+                    checkbox.click()
+            except Exception as e:
+                print(
+                    f"[НАСТРОЙКА ТАБЛИЦЫ] ⚠️ Не удалось отключить {checkbox_name}: {e}")
+
+        # Включаем нужные чекбоксы
+        for checkbox_name in required_checkboxes:
+            try:
+                checkbox = driver.find_element(
+                    By.CSS_SELECTOR, f"input[name='{checkbox_name}']")
+                if not checkbox.is_selected():
+                    print(
+                        f"[НАСТРОЙКА ТАБЛИЦЫ] ✅ Включаю чекбокс: {checkbox_name}")
+                    checkbox.click()
+            except Exception as e:
+                print(
+                    f"[НАСТРОЙКА ТАБЛИЦЫ] ⚠️ Не удалось включить {checkbox_name}: {e}")
+
+        # Закрываем попап настроек
+        close_button = driver.find_element(
+            By.CSS_SELECTOR, ".popup-cancel-btn")
+        close_button.click()
+        print("[НАСТРОЙКА ТАБЛИЦЫ] ✅ Настройки применены, попап закрыт")
+
+        # Ждем обновления таблицы
+        time.sleep(2)
+
+        return True
+
+    except Exception as e:
+        print(f"[НАСТРОЙКА ТАБЛИЦЫ] ❌ Ошибка при настройке таблицы: {e}")
+        return False
 
 
 def parse_channel_data_optimized(driver, channel_name, save_excel=True):
@@ -449,6 +643,12 @@ def parse_channel_data_optimized(driver, channel_name, save_excel=True):
             time.sleep(2)  # Дополнительная пауза после появления таблицы
         except TimeoutException:
             print("⚠️ Таблица не загрузилась за 15 секунд, продолжаем...")
+
+        # 🚀 НОВОЕ: Настраиваем таблицу перед парсингом
+        print("[ПАРСИНГ] 🔧 Настраиваю таблицу...")
+        if not configure_table_settings(driver):
+            print(
+                "[ПАРСИНГ] ⚠️ Не удалось настроить таблицу, продолжаем с текущими настройками")
 
         # Парсим данные таблицы с критическими оптимизациями
         table_data = parse_table_data_optimized(driver)
