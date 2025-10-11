@@ -296,7 +296,12 @@ def format_date_added(date_string):
             return date_string
 
         # Форматируем в нужный формат: месяц/день/год время (без ведущих нулей)
-        result = parsed_date.strftime("%-m/%-d/%y %H:%M")
+        # Используем совместимый с Windows подход
+        month = parsed_date.month
+        day = parsed_date.day
+        year = parsed_date.strftime("%y")
+        time = parsed_date.strftime("%H:%M")
+        result = f"{month}/{day}/{year} {time}"
         # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] ✅ Результат: '{date_string}' -> '{result}'")
         return result
 
