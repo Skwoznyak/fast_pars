@@ -13,6 +13,7 @@ import pandas as pd
 from datetime import datetime
 import shutil
 import os
+import re
 
 
 def check_browser_availability():
@@ -242,6 +243,119 @@ def _safe_text(elem):
         return elem.text.strip()
     except Exception:
         return ""
+
+
+def format_date_added(date_string):
+    """
+    Форматирует дату в формат месяц/день/год время
+    Пример: 2/18/25 15:29
+    """
+    if not date_string or date_string.strip() == "":
+        return ""
+
+    try:
+        # Убираем лишние пробелы
+        date_string = date_string.strip()
+        # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] 🔍 Обрабатываю дату: '{date_string}'")
+
+        # Пробуем разные форматы даты, которые могут прийти из Telegram Ads
+        date_formats = [
+            # 2 May 24 17:25 (ПЕРВЫЙ ПРИОРИТЕТ - РЕАЛЬНЫЙ ФОРМАТ)
+            "%d %b %y %H:%M",
+            "%d %b %Y %H:%M",      # 2 May 2024 17:25
+            "%d %B %y %H:%M",      # 2 May 24 17:25
+            "%d %B %Y %H:%M",      # 2 May 2024 17:25
+            "%d %b %y",            # 27 Feb 25
+            "%d %b %Y",            # 27 Feb 2025
+            "%d %B %y",            # 27 February 25
+            "%d %B %Y",            # 27 February 2025
+            "%Y-%m-%d %H:%M",      # 2025-02-18 15:29
+            "%d.%m.%Y %H:%M",      # 18.02.2025 15:29
+            "%d/%m/%Y %H:%M",      # 18/02/2025 15:29
+            "%m/%d/%Y %H:%M",      # 02/18/2025 15:29
+            "%Y-%m-%d",            # 2025-02-18
+            "%d.%m.%Y",            # 18.02.2025
+            "%d/%m/%Y",            # 18/02/2025
+            "%m/%d/%Y",            # 02/18/2025
+        ]
+
+        parsed_date = None
+        for fmt in date_formats:
+            try:
+                # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] 🔍 Пробую формат: {fmt}")
+                parsed_date = datetime.strptime(date_string, fmt)
+                # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] ✅ Успешно распарсил с форматом: {fmt}")
+                break
+            except ValueError as e:
+                # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] ❌ Формат {fmt} не подошел: {e}")
+                continue
+
+        if parsed_date is None:
+            # Если не удалось распарсить, возвращаем исходную строку
+            # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] ⚠️ Не удалось распарсить дату '{date_string}', возвращаю исходную")
+            return date_string
+
+        # Форматируем в нужный формат: месяц/день/год время
+        result = parsed_date.strftime("%m/%d/%y %H:%M")
+        # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] ✅ Результат: '{date_string}' -> '{result}'")
+        return result
+
+    except Exception as e:
+        print(
+            f"[ФОРМАТИРОВАНИЕ ДАТЫ] ⚠️ Ошибка при форматировании даты '{date_string}': {e}")
+        return date_string
+
+
+def safe_checkbox_interaction(driver, checkbox_name, should_be_selected):
+    """
+    Безопасное взаимодействие с чекбоксом с несколькими попытками
+    """
+    max_attempts = 3
+
+    for attempt in range(max_attempts):
+        try:
+            print(
+                f"[НАСТРОЙКА ТАБЛИЦЫ] 🔄 Попытка {attempt + 1}/{max_attempts} для чекбокса: {checkbox_name}")
+
+            # Находим чекбокс
+            checkbox = driver.find_element(
+                By.CSS_SELECTOR, f"input[name='{checkbox_name}']")
+
+            # Прокручиваем элемент в видимую область
+            driver.execute_script(
+                "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", checkbox)
+            time.sleep(0.5)
+
+            # Проверяем текущее состояние
+            is_selected = checkbox.is_selected()
+
+            if should_be_selected and not is_selected:
+                print(
+                    f"[НАСТРОЙКА ТАБЛИЦЫ] ✅ Включаю чекбокс: {checkbox_name}")
+                driver.execute_script("arguments[0].click();", checkbox)
+                time.sleep(0.3)
+            elif not should_be_selected and is_selected:
+                print(
+                    f"[НАСТРОЙКА ТАБЛИЦЫ] 🔄 Отключаю чекбокс: {checkbox_name}")
+                driver.execute_script("arguments[0].click();", checkbox)
+                time.sleep(0.3)
+            else:
+                print(
+                    f"[НАСТРОЙКА ТАБЛИЦЫ] ✅ Чекбокс {checkbox_name} уже в нужном состоянии")
+
+            return True
+
+        except Exception as e:
+            print(
+                f"[НАСТРОЙКА ТАБЛИЦЫ] ⚠️ Попытка {attempt + 1} не удалась для {checkbox_name}: {e}")
+            if attempt < max_attempts - 1:
+                time.sleep(1)  # Пауза перед следующей попыткой
+            else:
+                print(
+                    f"[НАСТРОЙКА ТАБЛИЦЫ] ❌ Не удалось настроить {checkbox_name} после {max_attempts} попыток")
+                return False
+
+    return False
 
 
 def _load_all_rows_by_scrolling(driver, wait):
@@ -537,6 +651,25 @@ def save_to_excel_optimized(data, channel_name, filename=None):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
+        # 🚀 НОВОЕ: Форматируем дату в нужном формате для колонки Date Added
+        print(f"[СОХРАНЕНИЕ] 🔍 Доступные колонки: {list(df.columns)}")
+
+        if 'Date Added' in df.columns:
+            print(
+                f"[СОХРАНЕНИЕ] 🔍 Найдена колонка Date Added, начинаю форматирование...")
+            print(
+                f"[СОХРАНЕНИЕ] 🔍 Пример исходной даты: {df['Date Added'].iloc[0] if len(df) > 0 else 'Нет данных'}")
+
+            # Применяем форматирование к каждой дате
+            df['Date Added'] = df['Date Added'].apply(format_date_added)
+
+            print(
+                f"[СОХРАНЕНИЕ] 🔍 Пример отформатированной даты: {df['Date Added'].iloc[0] if len(df) > 0 else 'Нет данных'}")
+            print(
+                f"[СОХРАНЕНИЕ] ✅ Даты отформатированы в формат месяц/день/год время")
+        else:
+            print(f"[СОХРАНЕНИЕ] ⚠️ Колонка Date Added не найдена в DataFrame")
+
         # Сохраняем в Excel
         df.to_excel(filename, index=False, engine='openpyxl')
 
@@ -554,6 +687,10 @@ def configure_table_settings(driver):
     """
     try:
         wait = WebDriverWait(driver, 10)
+
+        # 🚀 ДОБАВЛЕНО: Увеличиваем размер окна для лучшей видимости элементов
+        driver.maximize_window()
+        time.sleep(1)
 
         # Находим и нажимаем кнопку настроек таблицы
         settings_button = wait.until(EC.element_to_be_clickable(
@@ -577,31 +714,15 @@ def configure_table_settings(driver):
             "opens", "target", "url", "action"
         ]
 
-        # Отключаем ненужные чекбоксы
+        # 🚀 ОБНОВЛЕНО: Используем безопасную функцию для отключения ненужных чекбоксов
         for checkbox_name in all_checkboxes:
-            try:
-                checkbox = driver.find_element(
-                    By.CSS_SELECTOR, f"input[name='{checkbox_name}']")
-                if checkbox.is_selected():
-                    print(
-                        f"[НАСТРОЙКА ТАБЛИЦЫ] 🔄 Отключаю чекбокс: {checkbox_name}")
-                    checkbox.click()
-            except Exception as e:
-                print(
-                    f"[НАСТРОЙКА ТАБЛИЦЫ] ⚠️ Не удалось отключить {checkbox_name}: {e}")
+            safe_checkbox_interaction(
+                driver, checkbox_name, should_be_selected=False)
 
-        # Включаем нужные чекбоксы
+        # 🚀 ОБНОВЛЕНО: Используем безопасную функцию для включения нужных чекбоксов
         for checkbox_name in required_checkboxes:
-            try:
-                checkbox = driver.find_element(
-                    By.CSS_SELECTOR, f"input[name='{checkbox_name}']")
-                if not checkbox.is_selected():
-                    print(
-                        f"[НАСТРОЙКА ТАБЛИЦЫ] ✅ Включаю чекбокс: {checkbox_name}")
-                    checkbox.click()
-            except Exception as e:
-                print(
-                    f"[НАСТРОЙКА ТАБЛИЦЫ] ⚠️ Не удалось включить {checkbox_name}: {e}")
+            safe_checkbox_interaction(
+                driver, checkbox_name, should_be_selected=True)
 
         # Закрываем попап настроек
         close_button = driver.find_element(
