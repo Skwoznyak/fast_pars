@@ -295,8 +295,8 @@ def format_date_added(date_string):
             # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] ⚠️ Не удалось распарсить дату '{date_string}', возвращаю исходную")
             return date_string
 
-        # Форматируем в нужный формат: месяц/день/год время
-        result = parsed_date.strftime("%m/%d/%y %H:%M")
+        # Форматируем в нужный формат: месяц/день/год время (без ведущих нулей)
+        result = parsed_date.strftime("%-m/%-d/%y %H:%M")
         # print(f"[ФОРМАТИРОВАНИЕ ДАТЫ] ✅ Результат: '{date_string}' -> '{result}'")
         return result
 
