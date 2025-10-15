@@ -656,9 +656,15 @@ def save_to_excel_optimized(data, channel_name, filename=None):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
+        # 🚀 НОВОЕ: Очищаем только колонку Views от запятых
+        if 'Views' in df.columns:
+            print(f"[СОХРАНЕНИЕ] 🔧 Очищаю колонку Views от запятых...")
+            df['Views'] = df['Views'].astype(str).str.replace(',', '')
+            print(f"[СОХРАНЕНИЕ] ✅ Колонка Views очищена")
+
         # 🚀 НОВОЕ: Форматируем дату в нужном формате для колонки Date Added
         print(f"[СОХРАНЕНИЕ] 🔍 Доступные колонки: {list(df.columns)}")
-
+        
         if 'Date Added' in df.columns:
             print(
                 f"[СОХРАНЕНИЕ] 🔍 Найдена колонка Date Added, начинаю форматирование...")
