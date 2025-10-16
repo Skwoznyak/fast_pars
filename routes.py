@@ -18,7 +18,6 @@ import os
 from auth_deps import security
 
 
-
 router = APIRouter()
 
 
@@ -62,12 +61,23 @@ def choose_channel(channel_data: Channel_Data):
                 # Удаляем файл с диска
                 os.remove(excel_file_path)
 
+                # Очищаем название файла от кириллицы для HTTP заголовка
+                import re
+                import urllib.parse
+                safe_filename = re.sub(r'[^\w\s\-_\.]', '', excel_file_path)
+                safe_filename = safe_filename.replace(' ', '_')
+
+                # URL-кодируем имя файла для безопасной передачи
+                encoded_filename = urllib.parse.quote(
+                    safe_filename.encode('utf-8'))
+
                 # Возвращаем файл как поток
                 return StreamingResponse(
                     io.BytesIO(file_content),
                     media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     headers={
-                        'Content-Disposition': f'attachment; filename="{excel_file_path}"'}
+                        'Content-Disposition': f'attachment; filename*=UTF-8\'\'{encoded_filename}'
+                    }
                 )
             else:
                 return {'error': 'Excel файл не найден'}
@@ -112,4 +122,3 @@ def choose_channel(channel_data: Channel_Data):
 #     except Exception as e:
 #         raise HTTPException(
 #             status_code=500, detail=f"Ошибка при скачивании файла: {e}")
-

@@ -636,8 +636,9 @@ def save_to_excel_optimized(data, channel_name, filename=None):
     """
     if not filename:
         # Очищаем имя канала от недопустимых символов для имени файла
-        safe_channel_name = "".join(
-            c for c in channel_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        import re
+        safe_channel_name = re.sub(r'[^\w\s\-_\.]', '', channel_name)
+        safe_channel_name = safe_channel_name.replace(' ', '_')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{safe_channel_name}_{timestamp}.xlsx"
 
@@ -682,9 +683,7 @@ def save_to_excel_optimized(data, channel_name, filename=None):
             print(f"[СОХРАНЕНИЕ] ⚠️ Колонка Date Added не найдена в DataFrame")
 
         # Сохраняем в Excel
-        print(f"[ТЕСТ] 🔍 Сохраняю Excel файл: {filename}")
         df.to_excel(filename, index=False, engine='openpyxl')
-        print(f"[ТЕСТ] ✅ Excel файл сохранен успешно!")
 
         print(f"🚀 Данные канала '{channel_name}' сохранены в файл: {filename}")
         return filename
