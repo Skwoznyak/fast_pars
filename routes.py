@@ -80,36 +80,36 @@ def choose_channel(channel_data: Channel_Data):
         driver.quit()
 
 
-@router.get('/download')
-def download_latest_file():
-    """
-    Скачивает последний созданный Excel файл
-    """
-    try:
-        # Ищем все Excel файлы в текущей директории
-        excel_files = glob.glob("*.xlsx")
+# @router.get('/download')
+# def download_latest_file():
+#     """
+#     Скачивает последний созданный Excel файл
+#     """
+#     try:
+#         # Ищем все Excel файлы в текущей директории
+#         excel_files = glob.glob("*.xlsx")
 
-        if not excel_files:
-            raise HTTPException(
-                status_code=404, detail="Excel файлы не найдены")
+#         if not excel_files:
+#             raise HTTPException(
+#                 status_code=404, detail="Excel файлы не найдены")
 
-        # Сортируем по времени создания (последний первый)
-        latest_file = max(excel_files, key=os.path.getctime)
+#         # Сортируем по времени создания (последний первый)
+#         latest_file = max(excel_files, key=os.path.getctime)
 
-        # Проверяем, что файл существует
-        if not os.path.exists(latest_file):
-            raise HTTPException(status_code=404, detail="Файл не найден")
+#         # Проверяем, что файл существует
+#         if not os.path.exists(latest_file):
+#             raise HTTPException(status_code=404, detail="Файл не найден")
 
-        # Возвращаем файл для скачивания
-        return FileResponse(
-            path=latest_file,
-            filename=latest_file,
-            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+#         # Возвращаем файл для скачивания
+#         return FileResponse(
+#             path=latest_file,
+#             filename=latest_file,
+#             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+#         )
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Ошибка при скачивании файла: {e}")
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500, detail=f"Ошибка при скачивании файла: {e}")
 

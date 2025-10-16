@@ -662,6 +662,7 @@ def save_to_excel_optimized(data, channel_name, filename=None):
             df['Views'] = df['Views'].astype(str).str.replace(',', '')
             print(f"[СОХРАНЕНИЕ] ✅ Колонка Views очищена")
 
+
         # 🚀 НОВОЕ: Форматируем дату в нужном формате для колонки Date Added
         print(f"[СОХРАНЕНИЕ] 🔍 Доступные колонки: {list(df.columns)}")
         
@@ -681,8 +682,8 @@ def save_to_excel_optimized(data, channel_name, filename=None):
         else:
             print(f"[СОХРАНЕНИЕ] ⚠️ Колонка Date Added не найдена в DataFrame")
 
-        # Сохраняем в Excel
-        df.to_excel(filename, index=False, engine='openpyxl')
+        # Сохраняем в Excel с правильной кодировкой
+        df.to_excel(filename, index=False, engine='openpyxl', encoding='utf-8')
 
         print(f"🚀 Данные канала '{channel_name}' сохранены в файл: {filename}")
         return filename
